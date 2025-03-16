@@ -31,9 +31,10 @@ inputs = inputs.fillna(inputs.mean(numeric_only=True)) #本地vscode上运行时
 print(inputs)
 
 inputs = pd.get_dummies(inputs, dummy_na=True)
-#inputs = inputs.astype({col: 'int32' for col in inputs.columns if inputs[col].dtype == 'bool'})
+inputs = inputs.astype({col: 'int32' for col in inputs.columns if inputs[col].dtype == 'bool'})
 print(inputs)
-print(inputs.dtypes) 
+print(inputs.dtypes)
+print(inputs.values.dtype) #问题出在这里，详见lin哥聊天记录
 #检查inputs所有列的数据类型.输出为下面四行
 #NumRooms      float64
 #Alley_pave       bool
