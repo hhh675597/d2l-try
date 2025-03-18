@@ -108,5 +108,5 @@ print(A / A.sum(axis=1, keepdim=True))
 #没有keepdim=True会报错，因为广播机制无法将(5，)变为(5,4)，但可以将(5, 1)变为(5, 4)
 
 print(torch.linalg.norm(X)) #输出65.7571
-#RuntimeError: linalg.vector_norm: Expected a floating point or complex tensor as input. Got Long
+#RuntimeError: linalg.vector_norm: Expected a floating point浮点 or complex复数 tensor as input. Got Long
 ###################

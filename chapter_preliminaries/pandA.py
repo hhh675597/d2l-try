@@ -23,7 +23,7 @@ data = data.drop(columns=[col_to_drop])
 print(data)
 
 ###############
-inputs, outputs = data.iloc[:, 0:2], data.iloc[:, 2]
+inputs, outputs = data.iloc[:, 0:1], data.iloc[:, 1]
 inputs = inputs.fillna(inputs.mean(numeric_only=True))
 print(inputs)
 
