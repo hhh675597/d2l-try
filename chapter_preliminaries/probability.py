@@ -16,7 +16,7 @@ log_prob = m.log_prob(x)
 print(log_prob)
 #log_prob allows different total_count for each parameter and sample
 
-counts = multinomial.Multinomial(10, fair_probs).sample((500,))
-cum_counts = counts.cumsum(dim=0)
-estimates = cum_counts / cum_counts.sum(dim=1, keepdims=True)
+counts = multinomial.Multinomial(10, fair_probs).sample((500,)) #做500次实验，每次实验取10组样本
+cum_counts = counts.cumsum(dim=0) #沿轴0求和，得出骰子的每个面出现的总次数
+estimates = cum_counts / cum_counts.sum(dim=1, keepdims=True) #沿轴1求和，计算每一行的总和（即到当前实验为止，总共投掷了多少次骰子）
 print(estimates)
