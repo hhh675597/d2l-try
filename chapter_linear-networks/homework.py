@@ -10,3 +10,13 @@ y = torch.tensor([[0, 1, 0],
                 ])
 z = torch.mm(y, x)
 print(torch.mm(z, y.T))
+
+x = torch.tensor([[1, 2],
+                  [-2, 1]
+])
+y = torch.tensor([[2, 0],
+                  [0, 2]
+])
+
+print(torch.mm(x, torch.mm(y, x.T)))
+#print(torch.mm(x, y))
