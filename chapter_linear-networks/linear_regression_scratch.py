@@ -1,7 +1,3 @@
-# %matpoltlib inline
-# 这是一个 Jupyter Notebook 的魔法命令（magic command），用于控制 Matplotlib 图表的显示方式. 在vsc中没有作用
-# 作用：
-# %matplotlib inline 的作用是让 Matplotlib 绘制的图表直接嵌入在 Jupyter Notebook 的单元格输出中，而不是弹出一个单独的窗口显示图表。这对于数据分析和可视化非常方便, 这样可以在 Notebook 中直接看到图表结果.
 import random
 import torch
 from d2l import torch as d2l
@@ -50,7 +46,7 @@ def linreg(X, w, b):
 #定义损失函数
 def squared_loss(y_hat, y):
     """均方损失函数"""
-    return (y_hat - y.reshape(y_hat)) ** 2 / 2 #需要将y(真实值)的形状转换为与y_hat(预测值)
+    return (y_hat - y.reshape(y_hat.shape)) ** 2 / 2 #需要将y(真实值)的形状转换为与y_hat(预测值)
 
 #定义优化算法
 def sgd(params, learning_rate, batch_size):
@@ -60,3 +56,24 @@ def sgd(params, learning_rate, batch_size):
             param -= learning_rate * param.grad / batch_size
             param.grad.zero_()
 
+#两个超参数，需要手动调整
+learning_rate = 0.3
+num_epochs = 3 #迭代周期个数
+net = linreg
+loss = squared_loss
+
+for epoch in range(num_epochs):
+    for X, y in data_iter(batch_size, features, labels):
+        l = loss(net(X, w, b), y)
+        
+        l.sum().backward()
+        sgd([w, b], learning_rate, batch_size)
+
+    with torch.no_grad():
+        train_l = loss(net(features, w, b), labels)
+        print(f'epoch: {epoch + 1}, loss:{float(train_l.mean()):f}')
+
+print(w, '\n', b)
+
+print(f'w的估计误差: {true_w - w.reshape(true_w.shape)}')
+print(f'b的估计误差: {true_b - b}')
