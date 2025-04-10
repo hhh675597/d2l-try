@@ -5,10 +5,10 @@ from d2l import torch as d2l
 #生成一个数据集，包含1000个样本，每个样本含2个特征，
 def synthetic_data(w, b, num_examples):
     """生成y = X w + b + 噪声"""
-    X = torch.normal(0, 1, (num_examples, len(w))) # 这两个特征服从\mu = 0, \sigma = 1的正态分布
+    X = torch.normal(0, 1, (num_examples, len(w))) # 这两个特征服从\mu = 0, \sigma = 1的正态分布，形状为 num_examples \times len(w) 的矩阵
     y = torch.matmul(X, w) + b
     y += torch.normal(0, 0.01, y.shape) #噪声服从\mu = 0, \sigma = 0.01的正态分布
-#y.shape((-1, 1))将y重塑为二维张量，其中行数自动推断(用-1表示)，列数固定为1. 也就是说将y视为一个列向量
+#y.reshape((-1, 1))将y重塑为二维张量，其中行数自动推断(用-1表示)，列数固定为1. 也就是说将y视为一个列向量
     return X, y.reshape((-1, 1))
 
 #真正的参数，使用该参数生成真实数据集
