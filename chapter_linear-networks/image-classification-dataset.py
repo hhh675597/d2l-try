@@ -47,9 +47,9 @@ def load_data_fashion_mnist(batch_size, resize=None):
     mnist_test = torchvision.datasets.FashionMNIST(
         root="~/d2l-try/data", train=False, transform=trans, download=False)
     
-    return (data.DataLoader(mnist_train, batch_size, shuffle=True,
+    return (data.DataLoader(mnist_train, batch_size, shuffle=False, #真实情况下改为True
                             num_workers=get_dataloader_workers()),
-            data.DataLoader(mnist_test, batch_size, shuffle=False,
+            data.DataLoader(mnist_test, batch_size, shuffle=False, #真实情况下改为True
                             num_workers=get_dataloader_workers()))
 
 train_iter, test_iter = load_data_fashion_mnist(32, resize=64)
