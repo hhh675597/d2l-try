@@ -25,8 +25,8 @@ def softmax(X):
     return X_exp / partition #此处运用了广播机制
 
 ####注意########
-# 虽然这在数学上看起来是正确的，但我们在代码实现中有点草率
-# exp矩阵中的非常大或非常小的元素可能造成数值上溢或下溢，但我们没有采取措施来防止这点。
+# 虽然这在数学上看起来是正确的，但在代码实现中有点草率
+# exp矩阵中的非常大或非常小的元素可能造成数值上溢或下溢，但我们没有采取措施来防止这点
 ################
 
 #测试：
@@ -41,9 +41,93 @@ def net(X):
     return softmax(torch.matmul(X.reshape(-1, W.shape[0]), W) + b) #先用reshape函数将图像转换为向量(行数-1自动判断，列数W.shape[0]为参数矩阵W的行数)
 
 #定义损失函数
- #测试
- #y_hat = torch.tensor([[0.1, 0.3, 0.6], 
- #                    [0.1, 0.4, 0.5]]) #两行各表示一个样本，三个数值表示模型对该样本属于哪个类别的估计.
- #y = torch.tensor([0, 2])              #y为正确标记，即第一个样本属于第0 + 1 = 1类，第二个样本属于第2 + 1 = 3类
+ #举例
+y_hat = torch.tensor([[0.1, 0.3, 0.6], 
+                     [0.1, 0.4, 0.5]]) #两行各表示一个样本，三个数值表示模型对该样本属于哪个类别的估计.
+y = torch.tensor([0, 2])              #y为正确标记，即第一个样本属于第0 + 1 = 1类，第二个样本属于第2 + 1 = 3类
  #print(y_hat[[0, 1], y]) #输出：tensor([0.1000, 0.5000]) #(书上注释：然后使用y作为y_hat中概率的索引， 我们选择第一个样本中第一个类的概率和第二个样本中第三个类的概率)
- #高级索引(花式索引)：第一个[0, 1]指定了选取该 2 \times 3张量的第0行和第1行; 第二个索引y即[0, 2]指定了与前面选取的行对应的列索引 \therefore 整体选取第0行第0列 & 第1行第2列
+ #高级索引(花式索引)：第一个[0, 1]指定了选取该 2 \times 3张量的第0行和第1行，即全部的两个样本; 第二个索引y即[0, 2]指定了与前面选取的行对应的列索引 \therefore 整体选取第0行第0列 & 第1行第2列
+#交叉熵损失
+def cross_entropy(y_hat, y):
+    return -torch.log(y_hat[range(len(y)), y]) #直接提取真实类别的概率预测
+print(cross_entropy(y_hat, y)) #tensor([2.3026, 0.6931])
+
+ #Recall:
+print(y_hat[1].shape) #torch.Size[3]
+print(y_hat.shape[0]) #2
+print(y_hat.shape[1]) #3
+print(y_hat.shape) #torch.Size[2, 3]
+print(len(y_hat.shape)) #2，等效于y_hat.shape[0]
+
+
+#精度:
+def accuracy(y_hat, y):
+    """模型预测正确的数量"""
+    if  y_hat.shape[0]> 1 and y_hat.shape[1] > 1:
+        y_hat = y_hat.argmax(axis=1) #选取 每一行中最大概率对应的项 作为 模型预测给出的结果
+    cmp = y_hat.type(y.dtype) == y #==运算符对数据类型敏感,故此处强制转换类型保证不影响比较
+    return float(cmp.type(y.dtype).sum())
+    #结果是一个n行的列向量，bool类型，0错1对. 最后将n个元素相加，算出正确预测的数目
+ # 测试
+ #print(accuracy(y_hat, y)) #输出1.0
+ #在上例中,真实标签向量y=[0, 2]第一个样本属于第1类，第二个样本属于第3类;模型预测矩阵y_hat=[[0.1,0.3,0.6],[0.1,0.4,0.5]]得出第一个样本属于第3类，第二个样本属于第3类
+
+print(d2l.evaluate_accuracy(net, test_iter))
+
+def train_epoch_ch3(net, train_iter, loss, updater):
+    """训练模型一个迭代周期(定义见第3章)"""
+    # 将模型设置为训练模式
+    if isinstance(net, torch.nn.Module):
+        net.train()
+    # 训练损失总和、训练准确度总和、样本数
+    metric = d2l.Accumulator(3)
+    for X, y in train_iter:
+        # 计算梯度并更新参数
+        y_hat = net(X)
+        l = loss(y_hat, y)
+        if isinstance(updater, torch.optim.Optimizer):
+            # 使用PyTorch内置的优化器和损失函数
+            updater.zero_grad()
+            l.mean().backward()
+            updater.step()
+        else:
+            # 使用定制的优化器和损失函数
+            l.sum().backward()
+            updater(X.shape[0])
+        metric.add(float(l.sum()), accuracy(y_hat, y), y.numel())
+    # 返回训练损失和训练精度
+    return metric[0] / metric[2], metric[1] / metric[2]
+
+def train_ch3(net, train_iter, test_iter, loss, num_epochs, updater):  #@save
+    """训练模型(定义见第3章)"""
+    animator = d2l.Animator(xlabel='epoch', xlim=[1, num_epochs], ylim=[0.3, 0.9],
+                        legend=['train loss', 'train acc', 'test acc'])
+    for epoch in range(num_epochs):
+        train_metrics = train_epoch_ch3(net, train_iter, loss, updater)
+        test_acc = d2l.evaluate_accuracy(net, test_iter)
+        animator.add(epoch + 1, train_metrics + (test_acc,))
+    train_loss, train_acc = train_metrics
+    assert train_loss < 0.5, train_loss
+    assert train_acc <= 1 and train_acc > 0.7, train_acc
+    assert test_acc <= 1 and test_acc > 0.7, test_acc
+
+lr = 0.1
+
+def updater(batch_size):
+    return d2l.sgd([W, b], lr, batch_size)
+
+num_epochs = 10
+train_ch3(net, train_iter, test_iter, cross_entropy, num_epochs, updater)
+
+def predict_ch3(net, test_iter, n=6):  #@save
+    """预测标签(定义见第3章)"""
+    for X, y in test_iter:
+        break
+    trues = d2l.get_fashion_mnist_labels(y)
+    preds = d2l.get_fashion_mnist_labels(net(X).argmax(axis=1))
+    titles = [true +'\n' + pred for true, pred in zip(trues, preds)]
+    print(titles[0:10])
+    #d2l.show_images(
+    #    X[0:n].reshape((n, 28, 28)), 1, n, titles=titles[0:n])
+
+predict_ch3(net, test_iter)
