@@ -61,6 +61,9 @@ def sgd(params, learning_rate, batch_size):
         for param in params:
             param -= learning_rate * param.grad / batch_size
             param.grad.zero_()
+# 在 Python 中，with 语句用于管理上下文资源，确保在进入和退出代码块时自动执行特定操作。
+# torch.no_grad() 是一个上下文管理器，用于临时关闭自动求导机制
+# 两者综合起来：进入代码块时临时关闭求梯度
 
 #两个超参数，需要手动调整
 learning_rate = 0.3
@@ -80,10 +83,6 @@ for epoch in range(num_epochs):
     with torch.no_grad():
         train_l = loss(net(features, w, b), labels)
         print(f'epoch: {epoch + 1}, loss:{float(train_l.mean()):f}')
-
-#在 Python 中，with 语句用于管理上下文资源，确保在进入和退出代码块时自动执行特定操作。
-#torch.no_grad() 是一个上下文管理器，用于临时关闭自动求导机制
-#两者综合起来：进入代码块时临时关闭求梯度
 
 print(w, '\n', b)
 

@@ -38,7 +38,9 @@ def softmax(X):
 
 #定义模型
 def net(X):
-    return softmax(torch.matmul(X.reshape(-1, W.shape[0]), W) + b) #先用reshape函数将图像转换为向量(行数-1自动判断，列数W.shape[0]为参数矩阵W的行数)
+    return softmax(torch.matmul(X.reshape(-1, W.shape[0]), W) + b) 
+    # 先用reshape函数将图像转换为向量，其中：行数-1根据元素总数自动判断
+    # 列数W.shape[0]为参数矩阵W的行数，使之能够执行矩阵乘法
 
 #定义损失函数
  #举例
@@ -65,22 +67,52 @@ def accuracy(y_hat, y):
     """模型预测正确的数量"""
     if  y_hat.shape[0]> 1 and y_hat.shape[1] > 1:
         y_hat = y_hat.argmax(axis=1) #选取 每一行中最大概率对应的项 作为 模型预测给出的结果
-    cmp = y_hat.type(y.dtype) == y #==运算符对数据类型敏感,故此处强制转换类型保证不影响比较
+    cmp = y_hat.type(y.dtype) == y # ==运算符对数据类型敏感,故此处强制转换类型保证不影响比较的结果
     return float(cmp.type(y.dtype).sum())
     #结果是一个n行的列向量，bool类型，0错1对. 最后将n个元素相加，算出正确预测的数目
  # 测试
- #print(accuracy(y_hat, y)) #输出1.0
- #在上例中,真实标签向量y=[0, 2]第一个样本属于第1类，第二个样本属于第3类;模型预测矩阵y_hat=[[0.1,0.3,0.6],[0.1,0.4,0.5]]得出第一个样本属于第3类，第二个样本属于第3类
+ # print(accuracy(y_hat, y)) #输出1.0
+ # 在上例中,真实标签向量y=[0, 2]第一个样本属于第1类，第二个样本属于第3类;
+ # 模型预测矩阵y_hat=[[0.1,0.3,0.6],[0.1,0.4,0.5]]显示第一个样本属于第3类，第二个样本属于第3类
 
-print(d2l.evaluate_accuracy(net, test_iter))
+class Accumulator:
+    """在n个变量上累加"""
+    def __init__(self, n):
+        self.data = [0.0] * n
+
+    def add(self, *args):
+        self.data = [a + float(b) for a, b in zip(self.data, args)] # 同时累加多个变量时(n>=2)，利用*args能接受任意数量的输入并逐一累加
+
+    def reset(self):
+        self.data = [0.0] * len(self.data)
+
+    def __getitem__(self, idx):
+        return self.data[idx]
+
+def evaluate_accuracy(net, data_iter):
+    """计算在指定数据集上模型的精度"""
+    if isinstance(net, torch.nn.Module):
+        net.eval()  # 将模型设置为评估模式
+    metric = Accumulator(2)  # 一个累加器类，内含两个变量：正确预测数、预测总数
+    with torch.no_grad():
+        for X, y in data_iter:
+            metric.add(accuracy(net(X), y), y.numel()) # self.data:accuracy(net(X), y).....args:y.numel()返回张量y中元素的总个数
+    return metric[0] / metric[1] # 正确预测数 / 预测总数 = 预测精度
+
+print(evaluate_accuracy(net, test_iter)) #随机初始化，共10个类，故精度为0.1左右
+
+def updater(batch_size):
+    return d2l.sgd([W, b], lr, batch_size)
 
 def train_epoch_ch3(net, train_iter, loss, updater):
+# 请注意，updater是更新模型参数的常用函数，它接受批量大小作为参数
+# 它可以是d2l.sgd函数，也可以是框架的内置优化函数
     """训练模型一个迭代周期(定义见第3章)"""
     # 将模型设置为训练模式
-    if isinstance(net, torch.nn.Module):
+    if isinstance(net, torch.nn.Module): # isinstance( , )函数:用于判断某个对象是否是指定类(或其子类)的示例
         net.train()
-    # 训练损失总和、训练准确度总和、样本数
-    metric = d2l.Accumulator(3)
+    # 含3个变量的累加器：训练损失总和、训练准确度总和、样本数
+    metric = Accumulator(3)
     for X, y in train_iter:
         # 计算梯度并更新参数
         y_hat = net(X)
@@ -94,40 +126,38 @@ def train_epoch_ch3(net, train_iter, loss, updater):
             # 使用定制的优化器和损失函数
             l.sum().backward()
             updater(X.shape[0])
-        metric.add(float(l.sum()), accuracy(y_hat, y), y.numel())
-    # 返回训练损失和训练精度
-    return metric[0] / metric[2], metric[1] / metric[2]
 
-def train_ch3(net, train_iter, test_iter, loss, num_epochs, updater):  #@save
+        metric.add(float(l.sum()), accuracy(y_hat, y), y.numel())
+    
+    return metric[0] / metric[2], metric[1] / metric[2] # 返回训练损失和训练精度
+
+def train_ch3(net, train_iter, test_iter, loss, num_epochs, updater):
     """训练模型(定义见第3章)"""
     animator = d2l.Animator(xlabel='epoch', xlim=[1, num_epochs], ylim=[0.3, 0.9],
                         legend=['train loss', 'train acc', 'test acc'])
     for epoch in range(num_epochs):
         train_metrics = train_epoch_ch3(net, train_iter, loss, updater)
-        test_acc = d2l.evaluate_accuracy(net, test_iter)
+        test_acc = evaluate_accuracy(net, test_iter)
         animator.add(epoch + 1, train_metrics + (test_acc,))
     train_loss, train_acc = train_metrics
+    # 断言检查：若提供条件为真，则继续执行程序;否则报错AssertionError并提供错误信息(逗号后面给出的参数)
     assert train_loss < 0.5, train_loss
     assert train_acc <= 1 and train_acc > 0.7, train_acc
     assert test_acc <= 1 and test_acc > 0.7, test_acc
 
 lr = 0.1
-
-def updater(batch_size):
-    return d2l.sgd([W, b], lr, batch_size)
-
 num_epochs = 10
 train_ch3(net, train_iter, test_iter, cross_entropy, num_epochs, updater)
 
-def predict_ch3(net, test_iter, n=6):  #@save
+def predict_ch3(net, test_iter, n=6):
     """预测标签(定义见第3章)"""
     for X, y in test_iter:
         break
     trues = d2l.get_fashion_mnist_labels(y)
     preds = d2l.get_fashion_mnist_labels(net(X).argmax(axis=1))
     titles = [true +'\n' + pred for true, pred in zip(trues, preds)]
-    print(titles[0:10])
+    print(titles[0:15])
     #d2l.show_images(
-    #    X[0:n].reshape((n, 28, 28)), 1, n, titles=titles[0:n])
+    #    X[0:n].reshape((n, 28, 28)), 1, n, titles=titles[0:n]) #在Jupyter notebook中有用
 
 predict_ch3(net, test_iter)
